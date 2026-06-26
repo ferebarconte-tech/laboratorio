@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Planilla de Hemogramas</title>
+<style>
+  :root{
+    --azul: #1d3557;
+    --azul-claro: #457b9d;
+    --celeste: #e8f1f8;
+    --linea: #c9d6e3;
+    --rojo: #c0392b;
+    --rojo-claro: #fdeceb;
+    --fondo: #f5f7fa;
+    --texto: #1d2733;
+    --gris: #6b7686;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{margin:0;padding:0; overflow-x:hidden;}
+  body{
+    background:var(--fondo);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+    color:var(--texto);
+    padding-bottom:100px;
+    -webkit-text-size-adjust:100%;
+  }
+
+  header{
+    background:var(--azul);
+    color:white;
+    padding:12px 14px 10px;
+    position:sticky;
+    top:0;
+    z-index:50;
+    box-shadow:0 2px 8px rgba(0,0,0,0.15);
+  }
+  header h1{
+    margin:0;
+    font-size:16px;
+    font-weight:700;
+  }
+  header .sub{
+    font-size:10px;
+    color:#cfe0ef;
+    margin-top:2px;
+  }
+  .header-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px;
+  }
+
+  .toolbar{
+    display:flex;
+    gap:6px;
+    padding:8px 10px;
+    background:white;
+    border-bottom:1px solid var(--linea);
+    overflow-x:auto;
+    position:sticky;
+    top:54px;
+    z-index:40;
+    -webkit-overflow-scrolling:touch;
+  }
+  .btn{
+    border:none;
+    border-radius:10px;
+    padding:8px 12px;
+    font-size:12px;
+    font-weight:600;
+    cursor:pointer;
+    white-space:nowrap;
+    display:flex;
+    align-items:center;
+    gap:4px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    min-height:40px;
+  }
+  .btn-add{ background:var(--azul-claro); color:white; }
+  .btn-add:active{ background:#356381; }
+  .btn-clear{ background:#fdecea; color:var(--rojo); }
+  .btn-clear:active{ background:#f9d9d4; }
+
+  .scroll-hint{
+    font-size:10px;
+    color:var(--gris);
+    text-align:center;
+    padding:4px 8px 0;
+    background:var(--fondo);
+  }
+
+  .table-wrap{
+    overflow-x:auto;
+    margin:6px 4px 0;
+    border-radius:10px;
+    border:1px solid var(--linea);
+    background:white;
+    -webkit-overflow-scrolling:touch;
+    touch-action:pan-x;
+  }
+
+  table{
+    border-collapse:collapse;
+    min-width:1100px;
+    width:100%;
+    font-size:12px;
+  }
+
+  thead tr.group-row th{
+    background:var(--azul);
+    color:white;
+    font-size:9px;
+    font-weight:700;
+    padding:4px 3px;
+    text-align:center;
+    border-right:1px solid rgba(255,255,255,0.15);
+  }
+  thead tr.label-row th{
+    background:var(--celeste);
+    color:var(--azul);
+    font-size:9.5px;
+    font-weight:700;
+    padding:5px 3px;
+    text-align:center;
+    border-right:1px solid var(--linea);
+    border-bottom:2px solid var(--azul-claro);
+    position:relative;
+  }
+  thead tr.label-row th .unit{
+    display:block;
+    font-size:7.5px;
+    font-weight:500;
+    color:var(--azul-claro);
+    margin-top:1px;
+  }
+
+  th.col-n, td.col-n{
+    position:sticky;
+    left:0;
+    z-index:20;
+    background:var(--celeste);
+    min-width:34px;
+    box-shadow:2px 0 4px rgba(0,0,0,0.06);
+  }
+  td.col-n{
+    background:#fbfdff;
+    font-weight:700;
+    color:var(--azul);
+    text-align:center;
+    font-size:11px;
+  }
+  td.col-n input{
+    width:100%;
+    border:none;
+    background:transparent;
+    text-align:center;
+    font-size:12px;
+    font-weight:700;
+    color:var(--azul);
+    font-family:inherit;
+    padding:8px 2px;
+    min-height:38px;
+  }
+  td.col-n input:focus{
+    outline:2px solid var(--azul-claro);
+    outline-offset:-2px;
+    background:#eef6fc;
+  }
+
+  tbody td{
+    border-right:1px solid var(--linea);
+    border-bottom:1px solid var(--linea);
+    padding:0;
+    min-width:52px;
+  }
+
+  tbody tr:nth-child(even) td{ background:#fafbfc; }
+  tbody tr:nth-child(even) td.col-n{ background:#f3f7fb; }
+
+  input.cell{
+    width:100%;
+    border:none;
+    background:transparent;
+    text-align:center;
+    font-size:13px;
+    padding:8px 2px;
+    color:var(--texto);
+    font-family:inherit;
+    -webkit-appearance:none;
+    min-height:38px;
+  }
+  input.cell:focus{
+    outline:2px solid var(--azul-claro);
+    outline-offset:-2px;
+    background:#eef6fc;
+  }
+  input.cell::placeholder{ color:#c2cad4; font-size:10px; }
+
+  td.calc{
+    background:#f0f4f8 !important;
+    font-weight:700;
+    text-align:center;
+    font-size:12px;
+    color:var(--azul);
+    padding:8px 2px;
+  }
+  tbody tr:nth-child(even) td.calc{ background:#e9eff5 !important; }
+
+  td.range-ok{
+    color:#1b8a4a;
+  }
+  td.range-error{
+    color:var(--rojo) !important;
+    background:var(--rojo-claro) !important;
+  }
+  td.range-error input{
+    color:var(--rojo) !important;
+  }
+
+  td.result{
+    font-weight:800;
+    text-align:center;
+    font-size:12px;
+    padding:8px 2px;
+  }
+  td.result.ok{ color:#1b8a4a; background:#e7f7ee !important; }
+  td.result.error{ color:var(--rojo); background:#fdeceb !important; }
+  td.result.empty{ color:#aab2bd; background:transparent !important; }
+
+  td.del-cell{
+    text-align:center;
+    min-width:34px;
+  }
+  .del-btn{
+    border:none;
+    background:none;
+    color:#c2cad4;
+    font-size:16px;
+    line-height:1;
+    padding:4px 6px;
+    cursor:pointer;
+    touch-action:manipulation;
+  }
+  .del-btn:active{ color:var(--rojo); }
+
+  .fab-bar{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    background:white;
+    border-top:1px solid var(--linea);
+    padding:8px 10px;
+    display:flex;
+    gap:8px;
+    box-shadow:0 -4px 14px rgba(0,0,0,0.08);
+    z-index:60;
+    flex-wrap:wrap;
+  }
+  .fab-bar .btn{
+    flex:1;
+    justify-content:center;
+    min-height:44px;
+    border-radius:10px;
+    font-size:13px;
+    padding:10px 8px;
+  }
+  .btn-print{
+    background:var(--azul);
+    color:white;
+  }
+  .btn-print:active{ background:#15293f; }
+  .btn-excel{
+    background:#217346;
+    color:white;
+  }
+  .btn-excel:active{ background:#1a5c38; }
+
+  .save-status{
+    font-size:9px;
+    color:var(--gris);
+    text-align:center;
+    padding:2px 0 0;
+  }
+
+  .print-sheet{ display:none; }
+
+  /* Toast de feedback */
+  .toast{
+    position:fixed;
+    bottom:80px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#1d2733;
+    color:white;
+    padding:10px 20px;
+    border-radius:12px;
+    font-size:13px;
+    font-weight:600;
+    z-index:100;
+    opacity:0;
+    transition:opacity 0.3s ease;
+    pointer-events:none;
+    text-align:center;
+    max-width:90%;
+  }
+  .toast.show{
+    opacity:1;
+  }
+
+  @media print{
+    header, .toolbar, .scroll-hint, .table-wrap, .fab-bar, .save-status, .toast{
+      display:none !important;
+    }
+    body{ background:white; padding-bottom:0; }
+    .print-sheet{
+      display:block !important;
+    }
+    @page{
+      size: A4 landscape;
+      margin: 10mm;
+    }
+    .print-sheet h1{
+      text-align:center;
+      font-size:16px;
+      margin:0 0 2mm;
+      color:#000;
+      letter-spacing:0.5px;
+    }
+    .print-sheet .meta{
+      text-align:center;
+      font-size:9px;
+      color:#444;
+      margin-bottom:3mm;
+    }
+    table.print-table{
+      border-collapse:collapse;
+      width:100%;
+      font-size:8.5px;
+    }
+    table.print-table th, table.print-table td{
+      border:1px solid #444;
+      text-align:center;
+      padding:2px 3px;
+      color:#000;
+    }
+    table.print-table thead tr.group-row th{
+      background:#dde6ee !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      font-size:8px;
+      font-weight:700;
+    }
+    table.print-table thead tr.label-row th{
+      background:#eef3f8 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      font-weight:700;
+      font-size:8px;
+    }
+    table.print-table td.result-error{
+      font-weight:700;
+      color:#000 !important;
+      background:#f3d4d1 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    table.print-table td.result-ok{
+      font-weight:700;
+    }
+    table.print-table td.col-n{
+      font-weight:700;
+      background:#eef3f8 !important;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .print-footer{
+      margin-top:4mm;
+      font-size:8px;
+      color:#555;
+      text-align:right;
+    }
+  }
+
+  /* Responsive extra small */
+  @media (max-width:480px){
+    header h1{ font-size:14px; }
+    .btn{ font-size:11px; padding:6px 10px; min-height:36px; }
+    table{ font-size:10px; min-width:950px; }
+    td.calc, td.result, input.cell{ font-size:11px; padding:6px 2px; min-height:32px; }
+    thead tr.label-row th{ font-size:8px; padding:3px 2px; }
+    thead tr.group-row th{ font-size:8px; padding:3px 2px; }
+    .fab-bar .btn{ font-size:11px; min-height:40px; padding:8px 4px; }
+    .toast{ font-size:12px; padding:8px 16px; bottom:75px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <div>
+      <h1>🩸 Planilla de Hemogramas</h1>
+      <div class="sub" id="dateSub">—</div>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button class="btn btn-add" id="addRowBtn">➕ Agregar</button>
+  <button class="btn btn-clear" id="clearAllBtn">🗑 Vaciar</button>
+</div>
+<div class="scroll-hint">⇆ Deslizá para ver todas las columnas</div>
+
+<div class="table-wrap">
+  <table id="dataTable">
+    <thead>
+      <tr class="group-row">
+        <th class="col-n"></th>
+        <th colspan="4">HEMOGRAMA</th>
+        <th colspan="5">FÓRMULA LEUCOCITARIA (%)</th>
+        <th colspan="5">OTROS</th>
+        <th>RESULT.</th>
+        <th></th>
+      </tr>
+      <tr class="label-row">
+        <th class="col-n">N°</th>
+        <th>HTO<span class="unit">% · auto</span></th>
+        <th>HB<span class="unit">g/dL</span></th>
+        <th>GR<span class="unit">mill/mm³ · auto</span></th>
+        <th>GB<span class="unit">/mm³</span></th>
+        <th>Neu<span class="unit">%</span></th>
+        <th>Eo<span class="unit">%</span></th>
+        <th>Ba<span class="unit">%</span></th>
+        <th>Linf<span class="unit">%</span></th>
+        <th>Mono<span class="unit">%</span></th>
+        <th>PLAQ<span class="unit">/mm³</span></th>
+        <th>VSG<span class="unit">mm/h</span></th>
+        <th>PCR<span class="unit">mg/L</span></th>
+        <th>TP<span class="unit">seg</span></th>
+        <th>%Act.<span class="unit">%</span></th>
+        <th>KPTT<span class="unit">seg</span></th>
+        <th>F. Leuc.<span class="unit">suma %</span></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div class="save-status" id="saveStatus">Los datos se guardan automáticamente</div>
+
+<div class="fab-bar">
+  <button class="btn btn-excel" id="exportExcelBtn">📊 Exportar a Excel</button>
+  <button class="btn btn-print" id="printBtn">🖨️ Imprimir</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="print-sheet" id="printSheet">
+  <h1>PLANILLA DE HEMOGRAMAS</h1>
+  <div class="meta" id="printMeta"></div>
+  <table class="print-table">
+    <thead>
+      <tr class="group-row">
+        <th class="col-n"></th>
+        <th colspan="4">HEMOGRAMA</th>
+        <th colspan="5">FÓRMULA LEUCOCITARIA (%)</th>
+        <th colspan="5">OTROS</th>
+        <th>RESULT.</th>
+      </tr>
+      <tr class="label-row">
+        <th class="col-n">N°</th>
+        <th>HTO (%)</th>
+        <th>HB (g/dL)</th>
+        <th>GR (mill/mm³)</th>
+        <th>GB (/mm³)</th>
+        <th>Neu (%)</th>
+        <th>Eo (%)</th>
+        <th>Ba (%)</th>
+        <th>Linf (%)</th>
+        <th>Mono (%)</th>
+        <th>PLAQ (/mm³)</th>
+        <th>VSG (mm/h)</th>
+        <th>PCR (mg/L)</th>
+        <th>TP (seg)</th>
+        <th>%Act. (%)</th>
+        <th>KPTT (seg)</th>
+        <th>F. Leuc.</th>
+      </tr>
+    </thead>
+    <tbody id="printBody"></tbody>
+  </table>
+  <div class="print-footer" id="printFooter"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var STORAGE_KEY = "hemogramas_planilla_v1";
+  var INPUT_FIELDS = ["hb","gb","neu","eo","ba","linf","mono","plaq","vsg","pcr","tp","pact","kptt"];
+
+  var tableBody = document.getElementById("tableBody");
+  var saveStatus = document.getElementById("saveStatus");
+  var dateSub = document.getElementById("dateSub");
+  var toast = document.getElementById("toast");
+  var toastTimer = null;
+
+  var rows = [];
+  var nextId = 1;
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){
+      toast.classList.remove("show");
+    }, 2500);
+  }
+
+  function todayStr(){
+    var d = new Date();
+    var dias=["domingo","lunes","martes","miércoles","jueves","viernes","sábado"];
+    var meses=["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+    return dias[d.getDay()]+" "+d.getDate()+" de "+meses[d.getMonth()]+" de "+d.getFullYear();
+  }
+  dateSub.textContent = todayStr();
+
+  function emptyRow(){
+    var r = { id: nextId++, numero: (rows.length + 1).toString() };
+    INPUT_FIELDS.forEach(function(f){ r[f] = ""; });
+    return r;
+  }
+
+  function load(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(Array.isArray(parsed) && parsed.length){
+          rows = parsed;
+          var maxId = 0;
+          rows.forEach(function(r){ if(r.id > maxId) maxId = r.id; });
+          nextId = maxId + 1;
+          return;
+        }
+      }
+    }catch(e){}
+    rows = [emptyRow(), emptyRow(), emptyRow()];
+    rows.forEach(function(r, i){ r.numero = (i+1).toString(); });
+  }
+
+  function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(rows));
+      saveStatus.textContent = "✓ Guardado";
+      clearTimeout(save._t);
+      save._t = setTimeout(function(){
+        saveStatus.textContent = "Los datos se guardan automáticamente";
+      }, 1500);
+    }catch(e){}
+  }
+
+  function toNum(v){
+    if(v === "" || v === null || v === undefined) return null;
+    var n = parseFloat(String(v).replace(",", "."));
+    return isNaN(n) ? null : n;
+  }
+
+  function computeHto(hb){
+    var n = toNum(hb);
+    if(n === null) return "";
+    return Math.round(n * 3);
+  }
+
+  function computeGr(hb){
+    var n = toNum(hb);
+    if(n === null) return "";
+    return (n / 3).toFixed(5);
+  }
+
+  function checkRange(value, min, max){
+    var n = toNum(value);
+    if(n === null) return null;
+    if(min !== null && n < min) return false;
+    if(max !== null && n > max) return false;
+    return true;
+  }
+
+  function getRangeClass(value, min, max){
+    var result = checkRange(value, min, max);
+    if(result === null) return "";
+    return result ? "range-ok" : "range-error";
+  }
+
+  function getCellClass(value, min, max){
+    var result = checkRange(value, min, max);
+    if(result === null) return "";
+    return result ? "" : "range-error";
+  }
+
+  function computeLeuc(r){
+    var vals = ["neu","eo","ba","linf","mono"].map(function(f){ return toNum(r[f]); });
+    var anyFilled = vals.some(function(v){ return v !== null; });
+    if(!anyFilled) return {display:"", state:"empty"};
+    var sum = vals.reduce(function(acc,v){ return acc + (v||0); }, 0);
+    if(sum > 100) return {display:"Error", state:"error", sum:sum};
+    return {display: (Math.round(sum*100)/100).toString(), state:"ok", sum:sum};
+  }
+
+  function renderRows(){
+    tableBody.innerHTML = "";
+    rows.forEach(function(r, idx){
+      var tr = document.createElement("tr");
+
+      // N° - editable
+      var tdN = document.createElement("td");
+      tdN.className = "col-n";
+      var inputN = document.createElement("input");
+      inputN.type = "text";
+      inputN.inputMode = "numeric";
+      inputN.value = r.numero || (idx+1).toString();
+      inputN.addEventListener("input", function(){
+        r.numero = inputN.value;
+        save();
+      });
+      tdN.appendChild(inputN);
+      tr.appendChild(tdN);
+
+      // HTO (auto)
+      var htoVal = computeHto(r.hb);
+      var tdHto = document.createElement("td");
+      tdHto.className = "calc";
+      tdHto.textContent = htoVal || "—";
+      tdHto.className += " " + getRangeClass(htoVal, 36, 52);
+      tr.appendChild(tdHto);
+
+      // HB (input)
+      tr.appendChild(makeInputCell(r, "hb", "14.5", idx, 12, 17));
+
+      // GR (auto)
+      var grVal = computeGr(r.hb);
+      var tdGr = document.createElement("td");
+      tdGr.className = "calc";
+      tdGr.textContent = grVal || "—";
+      tdGr.className += " " + getRangeClass(r.hb, 12, 17);
+      tr.appendChild(tdGr);
+
+      // GB
+      tr.appendChild(makeInputCell(r, "gb", "7400", idx, 4000, 11000));
+      // Neu, Eo, Ba, Linf, Mono (sin rango fijo)
+      tr.appendChild(makeInputCell(r, "neu", "61", idx));
+      tr.appendChild(makeInputCell(r, "eo", "2", idx));
+      tr.appendChild(makeInputCell(r, "ba", "1", idx));
+      tr.appendChild(makeInputCell(r, "linf", "31", idx));
+      tr.appendChild(makeInputCell(r, "mono", "5", idx));
+      // PLAQ
+      tr.appendChild(makeInputCell(r, "plaq", "217000", idx, 150000, 450000));
+      // VSG
+      tr.appendChild(makeInputCell(r, "vsg", "10", idx, null, 20));
+      // PCR
+      tr.appendChild(makeInputCell(r, "pcr", "5", idx, null, 10));
+      // TP
+      tr.appendChild(makeInputCell(r, "tp", "12", idx, null, 14));
+      // %Act
+      tr.appendChild(makeInputCell(r, "pact", "100", idx, 70, null));
+      // KPTT
+      tr.appendChild(makeInputCell(r, "kptt", "30", idx, null, 40));
+
+      // Resultado leucocitario
+      var leuc = computeLeuc(r);
+      var tdRes = document.createElement("td");
+      tdRes.className = "result " + leuc.state;
+      tdRes.textContent = leuc.state === "empty" ? "—" : leuc.display;
+      tr.appendChild(tdRes);
+
+      // Borrar fila
+      var tdDel = document.createElement("td");
+      tdDel.className = "del-cell";
+      var delBtn = document.createElement("button");
+      delBtn.className = "del-btn";
+      delBtn.type = "button";
+      delBtn.textContent = "✕";
+      delBtn.setAttribute("aria-label", "Eliminar");
+      delBtn.addEventListener("click", function(){
+        if(rows.length <= 1){
+          rows[0] = emptyRow();
+          rows[0].numero = "1";
+        } else {
+          rows.splice(idx, 1);
+          rows.forEach(function(r, i){ if(!r.numero || r.numero === "") r.numero = (i+1).toString(); });
+        }
+        save();
+        renderRows();
+      });
+      tdDel.appendChild(delBtn);
+      tr.appendChild(tdDel);
+
+      tableBody.appendChild(tr);
+    });
+  }
+
+  function makeInputCell(r, field, placeholder, rowIdx, min, max){
+    var td = document.createElement("td");
+    var input = document.createElement("input");
+    input.className = "cell";
+    input.type = "text";
+    input.inputMode = "decimal";
+    input.placeholder = placeholder;
+    input.value = r[field] || "";
+    input.autocomplete = "off";
+    input.addEventListener("input", function(){
+      r[field] = input.value;
+      save();
+      updateDerivedForRow(rowIdx);
+    });
+    td.appendChild(input);
+
+    if(min !== undefined || max !== undefined){
+      var cls = getCellClass(r[field], min, max);
+      if(cls) td.className = cls;
+    }
+    return td;
+  }
+
+  function updateDerivedForRow(rowIdx){
+    var tr = tableBody.children[rowIdx];
+    if(!tr) return;
+    var r = rows[rowIdx];
+
+    var htoVal = computeHto(r.hb);
+    var tdHto = tr.children[1];
+    tdHto.textContent = htoVal || "—";
+    tdHto.className = "calc " + getRangeClass(htoVal, 36, 52);
+
+    var grVal = computeGr(r.hb);
+    var tdGr = tr.children[3];
+    tdGr.textContent = grVal || "—";
+    tdGr.className = "calc " + getRangeClass(r.hb, 12, 17);
+
+    var fieldMap = {
+      2: {field:"hb", min:12, max:17},
+      4: {field:"gb", min:4000, max:11000},
+      10: {field:"plaq", min:150000, max:450000},
+      11: {field:"vsg", min:null, max:20},
+      12: {field:"pcr", min:null, max:10},
+      13: {field:"tp", min:null, max:14},
+      14: {field:"pact", min:70, max:null},
+      15: {field:"kptt", min:null, max:40}
+    };
+    Object.keys(fieldMap).forEach(function(idx){
+      var td = tr.children[parseInt(idx)];
+      var config = fieldMap[idx];
+      var cls = getCellClass(r[config.field], config.min, config.max);
+      td.className = cls || "";
+      if(td.firstChild) td.firstChild.className = "cell";
+    });
+
+    var leuc = computeLeuc(r);
+    var tdRes = tr.children[16];
+    tdRes.className = "result " + leuc.state;
+    tdRes.textContent = leuc.state === "empty" ? "—" : leuc.display;
+
+    save();
+  }
+
+  // ============ EXPORTAR A EXCEL ============
+  function exportToExcel(){
+    var withData = rows.filter(function(r){
+      return INPUT_FIELDS.some(function(f){ return r[f] !== "" && r[f] !== null && r[f] !== undefined; });
+    });
+    var list = withData.length ? withData : rows;
+
+    if(list.length === 0){
+      showToast("No hay datos para exportar");
+      return;
+    }
+
+    // Construir CSV
+    var headers = [
+      "N°","HTO","HB","GR","GB","Neu","Eo","Ba","Linf","Mono",
+      "PLAQ","VSG","PCR","TP","%Act.","KPTT","F.Leuc."
+    ];
+
+    var rowsData = list.map(function(r, idx){
+      var hto = computeHto(r.hb) || "";
+      var gr = computeGr(r.hb) || "";
+      var leuc = computeLeuc(r);
+      var leucDisplay = leuc.state === "empty" ? "" : leuc.display;
+      return [
+        r.numero || (idx+1),
+        hto,
+        r.hb || "",
+        gr,
+        r.gb || "",
+        r.neu || "",
+        r.eo || "",
+        r.ba || "",
+        r.linf || "",
+        r.mono || "",
+        r.plaq || "",
+        r.vsg || "",
+        r.pcr || "",
+        r.tp || "",
+        r.pact || "",
+        r.kptt || "",
+        leucDisplay
+      ];
+    });
+
+    // Generar XLSX
+    var wb = createWorkbook(headers, rowsData);
+    var url = URL.createObjectURL(wb);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'hemogramas_' + new Date().toISOString().slice(0,10) + '.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+
+    showToast('📊 Excel exportado correctamente (' + list.length + ' pacientes)');
+  }
+
+  function createWorkbook(headers, data){
+    // Construir XML de Excel (simplificado pero funcional)
+    var rows = [];
+    rows.push(createRow(headers, true));
+
+    data.forEach(function(row){
+      rows.push(createRow(row, false));
+    });
+
+    var xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+      '<?mso-application progid="Excel.Sheet"?>\n' +
+      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n' +
+      ' xmlns:o="urn:schemas-microsoft-com:office:office"\n' +
+      ' xmlns:x="urn:schemas-microsoft-com:office:excel"\n' +
+      ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n' +
+      ' <Styles>\n' +
+      '  <Style ss:ID="header">\n' +
+      '   <Font ss:Bold="1" ss:Color="#FFFFFF"/>\n' +
+      '   <Interior ss:Color="#1d3557" ss:Pattern="Solid"/>\n' +
+      '   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>\n' +
+      '  </Style>\n' +
+      '  <Style ss:ID="cell">\n' +
+      '   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>\n' +
+      '  </Style>\n' +
+      '  <Style ss:ID="number">\n' +
+      '   <NumberFormat ss:Format="0.00"/>\n' +
+      '   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>\n' +
+      '  </Style>\n' +
+      ' </Styles>\n' +
+      ' <Worksheet ss:Name="Hemogramas">\n' +
+      '  <Table>\n' +
+      '   <Column ss:Width="40"/>\n' +
+      '   <Column ss:Width="55"/>\n' +
+      '   <Column ss:Width="55"/>\n' +
+      '   <Column ss:Width="65"/>\n' +
+      '   <Column ss:Width="70"/>\n' +
+      '   <Column ss:Width="50"/>\n' +
+      '   <Column ss:Width="50"/>\n' +
+      '   <Column ss:Width="50"/>\n' +
+      '   <Column ss:Width="50"/>\n' +
+      '   <Column ss:Width="50"/>\n' +
+      '   <Column ss:Width="80"/>\n' +
+      '   <Column ss:Width="55"/>\n' +
+      '   <Column ss:Width="55"/>\n' +
+      '   <Column ss:Width="55"/>\n' +
+      '   <Column ss:Width="55"/>\n' +
+      '   <Column ss:Width="55"/>\n' +
+      '   <Column ss:Width="60"/>\n' +
+      rows.join('\n') +
+      '  </Table>\n' +
+      '  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">\n' +
+      '   <FreezePanes/>\n' +
+      '   <FrozenNoSplit/>\n' +
+      '   <SplitHorizontal>1</SplitHorizontal>\n' +
+      '   <TopRowBottomPane>1</TopRowBottomPane>\n' +
+      '   <ActivePane>2</ActivePane>\n' +
+      '  </WorksheetOptions>\n' +
+      ' </Worksheet>\n' +
+      '</Workbook>';
+
+    return new Blob([xml], {type: 'application/vnd.ms-excel'});
+  }
+
+  function createRow(cells, isHeader){
+    var style = isHeader ? ' ss:StyleID="header"' : ' ss:StyleID="cell"';
+    var cellsXml = cells.map(function(cell){
+      var isNum = !isNaN(parseFloat(cell)) && cell !== "";
+      var type = isNum ? 'Number' : 'String';
+      var styleAttr = isNum ? ' ss:StyleID="number"' : '';
+      return '   <Cell' + styleAttr + '><Data ss:Type="' + type + '">' +
+        escapeXml(cell) + '</Data></Cell>';
+    }).join('\n');
+    return '   <Row' + style + '>\n' + cellsXml + '\n   </Row>';
+  }
+
+  function escapeXml(str){
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  document.getElementById("addRowBtn").addEventListener("click", function(){
+    var newRow = emptyRow();
+    newRow.numero = (rows.length + 1).toString();
+    rows.push(newRow);
+    save();
+    renderRows();
+    var wrap = document.querySelector(".table-wrap");
+    wrap.scrollTop = wrap.scrollHeight;
+  });
+
+  document.getElementById("clearAllBtn").addEventListener("click", function(){
+    if(confirm("¿Vaciar todos los datos?")){
+      rows = [emptyRow(), emptyRow(), emptyRow()];
+      rows.forEach(function(r, i){ r.numero = (i+1).toString(); });
+      save();
+      renderRows();
+      showToast("Datos vaciados");
+    }
+  });
+
+  document.getElementById("exportExcelBtn").addEventListener("click", exportToExcel);
+
+  document.getElementById("printBtn").addEventListener("click", function(){
+    buildPrintSheet();
+    window.print();
+  });
+
+  function buildPrintSheet(){
+    var printBody = document.getElementById("printBody");
+    var printMeta = document.getElementById("printMeta");
+    var printFooter = document.getElementById("printFooter");
+    printBody.innerHTML = "";
+
+    var withData = rows.filter(function(r){
+      return INPUT_FIELDS.some(function(f){ return r[f] !== "" && r[f] !== null && r[f] !== undefined; });
+    });
+    var list = withData.length ? withData : rows;
+
+    list.forEach(function(r, idx){
+      var tr = document.createElement("tr");
+      var hto = computeHto(r.hb) || "—";
+      var gr = computeGr(r.hb) || "—";
+      var leuc = computeLeuc(r);
+
+      var cells = [
+        r.numero || (idx+1),
+        hto,
+        r.hb || "—",
+        gr,
+        r.gb || "—",
+        r.neu || "—",
+        r.eo || "—",
+        r.ba || "—",
+        r.linf || "—",
+        r.mono || "—",
+        r.plaq || "—",
+        r.vsg || "—",
+        r.pcr || "—",
+        r.tp || "—",
+        r.pact || "—",
+        r.kptt || "—"
+      ];
+      cells.forEach(function(val, i){
+        var td = document.createElement("td");
+        td.textContent = val;
+        if(i === 0) td.className = "col-n";
+        tr.appendChild(td);
+      });
+
+      var tdRes = document.createElement("td");
+      tdRes.textContent = leuc.state === "empty" ? "—" : leuc.display;
+      tdRes.className = leuc.state === "error" ? "result-error" : (leuc.state === "ok" ? "result-ok" : "");
+      tr.appendChild(tdRes);
+
+      printBody.appendChild(tr);
+    });
+
+    printMeta.textContent = "Fecha de impresión: " + todayStr();
+    printFooter.textContent = "Total de pacientes: " + list.length;
+  }
+
+  load();
+  renderRows();
+})();
+</script>
+
+</body>
+</html>
