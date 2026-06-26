@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>Planilla de Hemogramas</title>
+<!-- Librerías para exportar -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
 <style>
   :root{
     --azul: #1d3557;
@@ -15,6 +20,7 @@
     --fondo: #f5f7fa;
     --texto: #1d2733;
     --gris: #6b7686;
+    --verde-excel: #217346;
   }
 
   *{box-sizing:border-box; margin:0; padding:0;}
@@ -52,6 +58,17 @@
     align-items:center;
     gap:8px;
   }
+  .header-row .btn-config{
+    background:rgba(255,255,255,0.15);
+    border:1px solid rgba(255,255,255,0.25);
+    color:white;
+    border-radius:8px;
+    padding:6px 12px;
+    font-size:12px;
+    cursor:pointer;
+    touch-action:manipulation;
+  }
+  .header-row .btn-config:active{ background:rgba(255,255,255,0.25); }
 
   .toolbar{
     display:flex;
@@ -64,6 +81,7 @@
     top:54px;
     z-index:40;
     -webkit-overflow-scrolling:touch;
+    flex-wrap:wrap;
   }
   .btn{
     border:none;
@@ -101,6 +119,7 @@
     background:white;
     -webkit-overflow-scrolling:touch;
     touch-action:pan-x;
+    transition: transform 0.2s;
   }
 
   table{
@@ -266,8 +285,9 @@
     justify-content:center;
     min-height:44px;
     border-radius:10px;
-    font-size:13px;
-    padding:10px 8px;
+    font-size:12px;
+    padding:10px 6px;
+    min-width:60px;
   }
   .btn-print{
     background:var(--azul);
@@ -275,10 +295,20 @@
   }
   .btn-print:active{ background:#15293f; }
   .btn-excel{
-    background:#217346;
+    background:var(--verde-excel);
     color:white;
   }
   .btn-excel:active{ background:#1a5c38; }
+  .btn-pdf{
+    background:#d32f2f;
+    color:white;
+  }
+  .btn-pdf:active{ background:#b71c1c; }
+  .btn-share{
+    background:#25D366;
+    color:white;
+  }
+  .btn-share:active{ background:#1da85a; }
 
   .save-status{
     font-size:9px;
@@ -289,7 +319,6 @@
 
   .print-sheet{ display:none; }
 
-  /* Toast de feedback */
   .toast{
     position:fixed;
     bottom:80px;
@@ -312,8 +341,189 @@
     opacity:1;
   }
 
+  /* ============ MODAL CONFIGURACIÓN ============ */
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    top:0; left:0; right:0; bottom:0;
+    background:rgba(0,0,0,0.5);
+    z-index:200;
+    justify-content:center;
+    align-items:flex-start;
+    padding:20px;
+    overflow-y:auto;
+  }
+  .modal-overlay.active{
+    display:flex;
+  }
+  .modal{
+    background:white;
+    border-radius:20px;
+    padding:24px;
+    max-width:500px;
+    width:100%;
+    box-shadow:0 10px 40px rgba(0,0,0,0.3);
+    margin:20px auto;
+    max-height:90vh;
+    overflow-y:auto;
+  }
+  .modal h2{
+    font-size:18px;
+    margin-bottom:16px;
+    color:var(--azul);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .modal .close-modal{
+    margin-left:auto;
+    background:none;
+    border:none;
+    font-size:24px;
+    cursor:pointer;
+    color:#999;
+  }
+  .config-group{
+    margin-bottom:16px;
+    border-bottom:1px solid var(--linea);
+    padding-bottom:14px;
+  }
+  .config-group:last-child{
+    border-bottom:none;
+    margin-bottom:0;
+  }
+  .config-group label{
+    display:block;
+    font-size:13px;
+    font-weight:600;
+    margin-bottom:4px;
+    color:var(--azul);
+  }
+  .config-group .desc{
+    font-size:11px;
+    color:var(--gris);
+    margin-bottom:6px;
+  }
+  .config-group input[type="text"],
+  .config-group input[type="number"],
+  .config-group select{
+    width:100%;
+    padding:8px 10px;
+    border:1px solid var(--linea);
+    border-radius:8px;
+    font-size:13px;
+    font-family:inherit;
+    background:white;
+  }
+  .config-group input[type="text"]:focus,
+  .config-group input[type="number"]:focus,
+  .config-group select:focus{
+    outline:2px solid var(--azul-claro);
+    outline-offset:-1px;
+  }
+  .config-group .range-inputs{
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .config-group .range-inputs input{
+    flex:1;
+  }
+  .config-group .range-inputs span{
+    color:var(--gris);
+    font-weight:600;
+  }
+  .config-group .color-picker{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+  }
+  .config-group .color-picker button{
+    width:40px;
+    height:40px;
+    border-radius:8px;
+    border:2px solid transparent;
+    cursor:pointer;
+    touch-action:manipulation;
+  }
+  .config-group .color-picker button.active{
+    border-color:var(--azul);
+    box-shadow:0 0 0 2px white, 0 0 0 4px var(--azul);
+  }
+  .config-group .color-picker button:active{ transform:scale(0.95); }
+  .config-group .zoom-control{
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .config-group .zoom-control input{
+    flex:1;
+  }
+  .config-group .zoom-control span{
+    min-width:50px;
+    text-align:center;
+    font-weight:700;
+    font-size:14px;
+  }
+  .btn-save-config{
+    width:100%;
+    padding:12px;
+    background:var(--azul);
+    color:white;
+    border:none;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:700;
+    cursor:pointer;
+    touch-action:manipulation;
+    margin-top:8px;
+  }
+  .btn-save-config:active{ background:#15293f; }
+  .btn-reset-config{
+    width:100%;
+    padding:10px;
+    background:#fdecea;
+    color:var(--rojo);
+    border:none;
+    border-radius:10px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    touch-action:manipulation;
+    margin-top:8px;
+  }
+  .btn-reset-config:active{ background:#f9d9d4; }
+
+  /* ============ MODAL COMPARTIR ============ */
+  .modal-share .share-buttons{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .modal-share .share-btn{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    padding:14px 16px;
+    border:none;
+    border-radius:12px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    width:100%;
+    color:white;
+    touch-action:manipulation;
+  }
+  .share-btn.whatsapp{ background:#25D366; }
+  .share-btn.gmail{ background:#EA4335; }
+  .share-btn.drive{ background:#4285F4; }
+  .share-btn.copy{ background:#6c757d; }
+  .share-btn.close{ background:#e9ecef; color:#333; }
+  .share-btn:active{ opacity:0.8; }
+  .share-btn span{ font-size:24px; }
+
   @media print{
-    header, .toolbar, .scroll-hint, .table-wrap, .fab-bar, .save-status, .toast{
+    header, .toolbar, .scroll-hint, .table-wrap, .fab-bar, .save-status, .toast, .modal-overlay{
       display:none !important;
     }
     body{ background:white; padding-bottom:0; }
@@ -349,18 +559,20 @@
       color:#000;
     }
     table.print-table thead tr.group-row th{
-      background:#dde6ee !important;
+      background:#1d3557 !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       font-size:8px;
       font-weight:700;
+      color:white !important;
     }
     table.print-table thead tr.label-row th{
-      background:#eef3f8 !important;
+      background:#e8f1f8 !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
       font-weight:700;
       font-size:8px;
+      color:#1d3557 !important;
     }
     table.print-table td.result-error{
       font-weight:700;
@@ -386,16 +598,17 @@
     }
   }
 
-  /* Responsive extra small */
   @media (max-width:480px){
     header h1{ font-size:14px; }
-    .btn{ font-size:11px; padding:6px 10px; min-height:36px; }
+    .btn{ font-size:10px; padding:6px 8px; min-height:36px; }
     table{ font-size:10px; min-width:950px; }
     td.calc, td.result, input.cell{ font-size:11px; padding:6px 2px; min-height:32px; }
     thead tr.label-row th{ font-size:8px; padding:3px 2px; }
     thead tr.group-row th{ font-size:8px; padding:3px 2px; }
-    .fab-bar .btn{ font-size:11px; min-height:40px; padding:8px 4px; }
+    .fab-bar .btn{ font-size:10px; min-height:38px; padding:6px 4px; }
     .toast{ font-size:12px; padding:8px 16px; bottom:75px; }
+    .modal{ padding:16px; }
+    .modal .share-btn{ font-size:13px; padding:12px 14px; }
   }
 </style>
 </head>
@@ -407,6 +620,7 @@
       <h1>🩸 Planilla de Hemogramas</h1>
       <div class="sub" id="dateSub">—</div>
     </div>
+    <button class="btn-config" id="openConfigBtn">⚙️ Configurar</button>
   </div>
 </header>
 
@@ -416,7 +630,7 @@
 </div>
 <div class="scroll-hint">⇆ Deslizá para ver todas las columnas</div>
 
-<div class="table-wrap">
+<div class="table-wrap" id="tableWrap">
   <table id="dataTable">
     <thead>
       <tr class="group-row">
@@ -424,27 +638,26 @@
         <th colspan="4">HEMOGRAMA</th>
         <th colspan="5">FÓRMULA LEUCOCITARIA (%)</th>
         <th colspan="5">OTROS</th>
-        <th>RESULT.</th>
-        <th></th>
+        <th colspan="2">RESULT. F. LEUCOCITARIA</th>
       </tr>
       <tr class="label-row">
         <th class="col-n">N°</th>
-        <th>HTO<span class="unit">% · auto</span></th>
-        <th>HB<span class="unit">g/dL</span></th>
-        <th>GR<span class="unit">mill/mm³ · auto</span></th>
-        <th>GB<span class="unit">/mm³</span></th>
-        <th>Neu<span class="unit">%</span></th>
-        <th>Eo<span class="unit">%</span></th>
-        <th>Ba<span class="unit">%</span></th>
-        <th>Linf<span class="unit">%</span></th>
-        <th>Mono<span class="unit">%</span></th>
-        <th>PLAQ<span class="unit">/mm³</span></th>
-        <th>VSG<span class="unit">mm/h</span></th>
-        <th>PCR<span class="unit">mg/L</span></th>
-        <th>TP<span class="unit">seg</span></th>
-        <th>%Act.<span class="unit">%</span></th>
-        <th>KPTT<span class="unit">seg</span></th>
-        <th>F. Leuc.<span class="unit">suma %</span></th>
+        <th id="hdr-hto">HTO<span class="unit">% · auto</span></th>
+        <th id="hdr-hb">HB<span class="unit">g/dL</span></th>
+        <th id="hdr-gr">GR<span class="unit">mill/mm³ · auto</span></th>
+        <th id="hdr-gb">GB<span class="unit">/mm³</span></th>
+        <th id="hdr-neu">Neu<span class="unit">%</span></th>
+        <th id="hdr-eo">Eo<span class="unit">%</span></th>
+        <th id="hdr-ba">Ba<span class="unit">%</span></th>
+        <th id="hdr-linf">Linf<span class="unit">%</span></th>
+        <th id="hdr-mono">Mono<span class="unit">%</span></th>
+        <th id="hdr-plaq">PLAQ<span class="unit">/mm³</span></th>
+        <th id="hdr-vsg">VSG<span class="unit">mm/h</span></th>
+        <th id="hdr-pcr">PCR<span class="unit">mg/L</span></th>
+        <th id="hdr-tp">TP<span class="unit">seg</span></th>
+        <th id="hdr-pact">%Act.<span class="unit">%</span></th>
+        <th id="hdr-kptt">KPTT<span class="unit">seg</span></th>
+        <th id="hdr-leuc">F. Leuc.<span class="unit">suma %</span></th>
         <th></th>
       </tr>
     </thead>
@@ -455,23 +668,173 @@
 <div class="save-status" id="saveStatus">Los datos se guardan automáticamente</div>
 
 <div class="fab-bar">
-  <button class="btn btn-excel" id="exportExcelBtn">📊 Exportar a Excel</button>
+  <button class="btn btn-excel" id="exportExcelBtn">📊 Excel</button>
+  <button class="btn btn-pdf" id="exportPDFBtn">📄 PDF</button>
+  <button class="btn btn-share" id="shareBtn">📤 Compartir</button>
   <button class="btn btn-print" id="printBtn">🖨️ Imprimir</button>
+</div>
+
+<!-- ============ MODAL CONFIGURACIÓN ============ -->
+<div class="modal-overlay" id="configModal">
+  <div class="modal">
+    <h2>
+      ⚙️ Configuración
+      <button class="close-modal" id="closeConfigBtn">✕</button>
+    </h2>
+
+    <!-- Tamaño de tabla -->
+    <div class="config-group">
+      <label>Tamaño de la tabla</label>
+      <div class="zoom-control">
+        <button class="btn" id="zoomOut" style="min-width:40px;padding:4px 8px;">−</button>
+        <input type="range" id="zoomRange" min="60" max="150" value="100" step="5">
+        <span id="zoomLabel">100%</span>
+        <button class="btn" id="zoomIn" style="min-width:40px;padding:4px 8px;">+</button>
+      </div>
+    </div>
+
+    <!-- Color de encabezados -->
+    <div class="config-group">
+      <label>Color de encabezados</label>
+      <div class="color-picker" id="colorPicker">
+        <button style="background:#1d3557;" data-color="#1d3557" class="active"></button>
+        <button style="background:#2c3e50;" data-color="#2c3e50"></button>
+        <button style="background:#8e44ad;" data-color="#8e44ad"></button>
+        <button style="background:#2980b9;" data-color="#2980b9"></button>
+        <button style="background:#27ae60;" data-color="#27ae60"></button>
+        <button style="background:#d35400;" data-color="#d35400"></button>
+        <button style="background:#c0392b;" data-color="#c0392b"></button>
+      </div>
+    </div>
+
+    <!-- Fórmulas -->
+    <div class="config-group">
+      <label>Fórmulas</label>
+      <div class="desc">Edita las fórmulas de cálculo (usa 'hb' como variable)</div>
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">HTO =</label>
+      <input type="text" id="formulaHto" value="hb * 3">
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">GR =</label>
+      <input type="text" id="formulaGr" value="hb / 3">
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">Resultado Leucocitario =</label>
+      <input type="text" id="formulaLeuc" value="suma > 100 ? 'Error' : suma">
+      <div class="desc" style="margin-top:4px;">Variables: suma (suma de Neu+Eo+Ba+Linf+Mono)</div>
+    </div>
+
+    <!-- Rangos de referencia -->
+    <div class="config-group">
+      <label>Rangos de referencia</label>
+      <div class="desc">Valores mínimos y máximos para cada columna (vacío = sin límite)</div>
+      
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">HTO</label>
+      <div class="range-inputs">
+        <input type="number" id="range-hto-min" value="36" step="0.5" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-hto-max" value="52" step="0.5" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">HB</label>
+      <div class="range-inputs">
+        <input type="number" id="range-hb-min" value="12" step="0.5" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-hb-max" value="17" step="0.5" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">GB</label>
+      <div class="range-inputs">
+        <input type="number" id="range-gb-min" value="4000" step="100" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-gb-max" value="11000" step="100" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">PLAQ</label>
+      <div class="range-inputs">
+        <input type="number" id="range-plaq-min" value="150000" step="1000" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-plaq-max" value="450000" step="1000" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">VSG</label>
+      <div class="range-inputs">
+        <input type="number" id="range-vsg-min" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-vsg-max" value="20" step="1" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">PCR</label>
+      <div class="range-inputs">
+        <input type="number" id="range-pcr-min" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-pcr-max" value="10" step="0.5" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">TP</label>
+      <div class="range-inputs">
+        <input type="number" id="range-tp-min" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-tp-max" value="14" step="0.5" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">%Act.</label>
+      <div class="range-inputs">
+        <input type="number" id="range-pact-min" value="70" step="1" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-pact-max" placeholder="Max">
+      </div>
+
+      <label style="font-weight:500;font-size:12px;margin-top:6px;">KPTT</label>
+      <div class="range-inputs">
+        <input type="number" id="range-kptt-min" placeholder="Min">
+        <span>—</span>
+        <input type="number" id="range-kptt-max" value="40" step="1" placeholder="Max">
+      </div>
+    </div>
+
+    <button class="btn-save-config" id="saveConfigBtn">💾 Guardar configuración</button>
+    <button class="btn-reset-config" id="resetConfigBtn">↺ Restaurar configuración predeterminada</button>
+  </div>
+</div>
+
+<!-- ============ MODAL COMPARTIR ============ -->
+<div class="modal-overlay modal-share" id="shareModal">
+  <div class="modal">
+    <h2>
+      📤 Compartir planilla
+      <button class="close-modal" id="closeShareModalBtn">✕</button>
+    </h2>
+    <div class="share-buttons">
+      <button class="share-btn whatsapp" id="shareWhatsApp">
+        <span>💬</span> WhatsApp
+      </button>
+      <button class="share-btn gmail" id="shareGmail">
+        <span>📧</span> Correo electrónico
+      </button>
+      <button class="share-btn drive" id="shareDrive">
+        <span>☁️</span> Guardar en Drive
+      </button>
+      <button class="share-btn copy" id="shareCopy">
+        <span>📋</span> Copiar enlace de descarga
+      </button>
+      <button class="share-btn close" id="closeShareModal">
+        <span>✕</span> Cerrar
+      </button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
+<!-- ============ HOJA DE IMPRESIÓN ============ -->
 <div class="print-sheet" id="printSheet">
   <h1>PLANILLA DE HEMOGRAMAS</h1>
   <div class="meta" id="printMeta"></div>
-  <table class="print-table">
+  <table class="print-table" id="printTable">
     <thead>
       <tr class="group-row">
         <th class="col-n"></th>
         <th colspan="4">HEMOGRAMA</th>
         <th colspan="5">FÓRMULA LEUCOCITARIA (%)</th>
         <th colspan="5">OTROS</th>
-        <th>RESULT.</th>
+        <th colspan="2">RESULT. F. LEUCOCITARIA</th>
       </tr>
       <tr class="label-row">
         <th class="col-n">N°</th>
@@ -491,6 +854,7 @@
         <th>%Act. (%)</th>
         <th>KPTT (seg)</th>
         <th>F. Leuc.</th>
+        <th></th>
       </tr>
     </thead>
     <tbody id="printBody"></tbody>
@@ -503,9 +867,36 @@
   "use strict";
 
   var STORAGE_KEY = "hemogramas_planilla_v1";
+  var CONFIG_KEY = "hemogramas_config_v1";
   var INPUT_FIELDS = ["hb","gb","neu","eo","ba","linf","mono","plaq","vsg","pcr","tp","pact","kptt"];
 
+  // ============ CONFIGURACIÓN PREDETERMINADA ============
+  var DEFAULT_CONFIG = {
+    zoom: 100,
+    headerColor: "#1d3557",
+    formulas: {
+      hto: "hb * 3",
+      gr: "hb / 3",
+      leuc: "suma > 100 ? 'Error' : suma"
+    },
+    ranges: {
+      hto: {min: 36, max: 52},
+      hb: {min: 12, max: 17},
+      gb: {min: 4000, max: 11000},
+      plaq: {min: 150000, max: 450000},
+      vsg: {min: null, max: 20},
+      pcr: {min: null, max: 10},
+      tp: {min: null, max: 14},
+      pact: {min: 70, max: null},
+      kptt: {min: null, max: 40}
+    }
+  };
+
+  var config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+
+  // ============ ELEMENTOS ============
   var tableBody = document.getElementById("tableBody");
+  var tableWrap = document.getElementById("tableWrap");
   var saveStatus = document.getElementById("saveStatus");
   var dateSub = document.getElementById("dateSub");
   var toast = document.getElementById("toast");
@@ -514,6 +905,144 @@
   var rows = [];
   var nextId = 1;
 
+  // ============ FUNCIONES DE CONFIGURACIÓN ============
+  function loadConfig(){
+    try{
+      var raw = localStorage.getItem(CONFIG_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        config = parsed;
+        return;
+      }
+    }catch(e){}
+    config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  }
+
+  function saveConfig(){
+    try{
+      localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    }catch(e){}
+  }
+
+  function applyConfig(){
+    // Zoom
+    var zoom = config.zoom / 100;
+    tableWrap.style.transform = 'scale(' + zoom + ')';
+    tableWrap.style.transformOrigin = 'top left';
+    document.getElementById('zoomRange').value = config.zoom;
+    document.getElementById('zoomLabel').textContent = config.zoom + '%';
+
+    // Color
+    var color = config.headerColor;
+    var groupHeaders = document.querySelectorAll('#dataTable thead tr.group-row th');
+    groupHeaders.forEach(function(th){
+      th.style.background = color;
+    });
+
+    // Actualizar rangos en config modal
+    var rangeMap = {
+      'hto': 'hto', 'hb': 'hb', 'gb': 'gb', 'plaq': 'plaq',
+      'vsg': 'vsg', 'pcr': 'pcr', 'tp': 'tp', 'pact': 'pact', 'kptt': 'kptt'
+    };
+    Object.keys(rangeMap).forEach(function(key){
+      var r = config.ranges[key];
+      if(r){
+        var minEl = document.getElementById('range-' + key + '-min');
+        var maxEl = document.getElementById('range-' + key + '-max');
+        if(minEl) minEl.value = r.min !== null && r.min !== undefined ? r.min : '';
+        if(maxEl) maxEl.value = r.max !== null && r.max !== undefined ? r.max : '';
+      }
+    });
+
+    // Fórmulas
+    document.getElementById('formulaHto').value = config.formulas.hto;
+    document.getElementById('formulaGr').value = config.formulas.gr;
+    document.getElementById('formulaLeuc').value = config.formulas.leuc;
+
+    // Color picker
+    document.querySelectorAll('#colorPicker button').forEach(function(btn){
+      btn.classList.toggle('active', btn.dataset.color === color);
+    });
+  }
+
+  function resetConfig(){
+    config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    saveConfig();
+    applyConfig();
+    showToast('Configuración restaurada');
+  }
+
+  // ============ FUNCIONES DE CÁLCULO CON FÓRMULAS ============
+  function computeWithFormula(formula, variables){
+    try{
+      var fn = new Function(Object.keys(variables).join(','), 'return ' + formula);
+      var result = fn.apply(null, Object.values(variables));
+      return result;
+    }catch(e){
+      return null;
+    }
+  }
+
+  function computeHto(hb){
+    var n = toNum(hb);
+    if(n === null) return "";
+    var result = computeWithFormula(config.formulas.hto, {hb: n});
+    if(result === null || result === undefined || !isFinite(result)) return "";
+    return Math.round(result);
+  }
+
+  function computeGr(hb){
+    var n = toNum(hb);
+    if(n === null) return "";
+    var result = computeWithFormula(config.formulas.gr, {hb: n});
+    if(result === null || result === undefined || !isFinite(result)) return "";
+    return Number(result).toFixed(5);
+  }
+
+  function computeLeuc(r){
+    var vals = ["neu","eo","ba","linf","mono"].map(function(f){ return toNum(r[f]); });
+    var anyFilled = vals.some(function(v){ return v !== null; });
+    if(!anyFilled) return {display:"", state:"empty"};
+    var suma = vals.reduce(function(acc,v){ return acc + (v||0); }, 0);
+    try{
+      var fn = new Function('suma', 'return ' + config.formulas.leuc);
+      var result = fn(suma);
+      if(result === "Error" || result === "error") return {display:"Error", state:"error", sum:suma};
+      return {display: String(result), state:"ok", sum:suma};
+    }catch(e){
+      return {display:"Error", state:"error", sum:suma};
+    }
+  }
+
+  // ============ FUNCIONES DE RANGO ============
+  function getRangeConfig(field){
+    var range = config.ranges[field];
+    if(!range) return {min: null, max: null};
+    return {min: range.min, max: range.max};
+  }
+
+  function checkRange(value, field){
+    var n = toNum(value);
+    if(n === null) return null;
+    var range = getRangeConfig(field);
+    if(range.min !== null && n < range.min) return false;
+    if(range.max !== null && n > range.max) return false;
+    return true;
+  }
+
+  function getRangeClass(value, field){
+    var result = checkRange(value, field);
+    if(result === null) return "";
+    return result ? "range-ok" : "range-error";
+  }
+
+  function getCellClass(value, field){
+    var result = checkRange(value, field);
+    if(result === null) return "";
+    return result ? "" : "range-error";
+  }
+
+  // ============ FUNCIONES BASE ============
   function showToast(msg){
     toast.textContent = msg;
     toast.classList.add("show");
@@ -572,53 +1101,13 @@
     return isNaN(n) ? null : n;
   }
 
-  function computeHto(hb){
-    var n = toNum(hb);
-    if(n === null) return "";
-    return Math.round(n * 3);
-  }
-
-  function computeGr(hb){
-    var n = toNum(hb);
-    if(n === null) return "";
-    return (n / 3).toFixed(5);
-  }
-
-  function checkRange(value, min, max){
-    var n = toNum(value);
-    if(n === null) return null;
-    if(min !== null && n < min) return false;
-    if(max !== null && n > max) return false;
-    return true;
-  }
-
-  function getRangeClass(value, min, max){
-    var result = checkRange(value, min, max);
-    if(result === null) return "";
-    return result ? "range-ok" : "range-error";
-  }
-
-  function getCellClass(value, min, max){
-    var result = checkRange(value, min, max);
-    if(result === null) return "";
-    return result ? "" : "range-error";
-  }
-
-  function computeLeuc(r){
-    var vals = ["neu","eo","ba","linf","mono"].map(function(f){ return toNum(r[f]); });
-    var anyFilled = vals.some(function(v){ return v !== null; });
-    if(!anyFilled) return {display:"", state:"empty"};
-    var sum = vals.reduce(function(acc,v){ return acc + (v||0); }, 0);
-    if(sum > 100) return {display:"Error", state:"error", sum:sum};
-    return {display: (Math.round(sum*100)/100).toString(), state:"ok", sum:sum};
-  }
-
+  // ============ RENDERIZAR ============
   function renderRows(){
     tableBody.innerHTML = "";
     rows.forEach(function(r, idx){
       var tr = document.createElement("tr");
 
-      // N° - editable
+      // N°
       var tdN = document.createElement("td");
       tdN.className = "col-n";
       var inputN = document.createElement("input");
@@ -637,49 +1126,49 @@
       var tdHto = document.createElement("td");
       tdHto.className = "calc";
       tdHto.textContent = htoVal || "—";
-      tdHto.className += " " + getRangeClass(htoVal, 36, 52);
+      tdHto.className += " " + getRangeClass(htoVal, "hto");
       tr.appendChild(tdHto);
 
-      // HB (input)
-      tr.appendChild(makeInputCell(r, "hb", "14.5", idx, 12, 17));
+      // HB
+      tr.appendChild(makeInputCell(r, "hb", "14.5", idx, "hb"));
 
       // GR (auto)
       var grVal = computeGr(r.hb);
       var tdGr = document.createElement("td");
       tdGr.className = "calc";
       tdGr.textContent = grVal || "—";
-      tdGr.className += " " + getRangeClass(r.hb, 12, 17);
+      tdGr.className += " " + getRangeClass(r.hb, "hb");
       tr.appendChild(tdGr);
 
       // GB
-      tr.appendChild(makeInputCell(r, "gb", "7400", idx, 4000, 11000));
-      // Neu, Eo, Ba, Linf, Mono (sin rango fijo)
+      tr.appendChild(makeInputCell(r, "gb", "7400", idx, "gb"));
+      // Neu, Eo, Ba, Linf, Mono
       tr.appendChild(makeInputCell(r, "neu", "61", idx));
       tr.appendChild(makeInputCell(r, "eo", "2", idx));
       tr.appendChild(makeInputCell(r, "ba", "1", idx));
       tr.appendChild(makeInputCell(r, "linf", "31", idx));
       tr.appendChild(makeInputCell(r, "mono", "5", idx));
       // PLAQ
-      tr.appendChild(makeInputCell(r, "plaq", "217000", idx, 150000, 450000));
+      tr.appendChild(makeInputCell(r, "plaq", "217000", idx, "plaq"));
       // VSG
-      tr.appendChild(makeInputCell(r, "vsg", "10", idx, null, 20));
+      tr.appendChild(makeInputCell(r, "vsg", "10", idx, "vsg"));
       // PCR
-      tr.appendChild(makeInputCell(r, "pcr", "5", idx, null, 10));
+      tr.appendChild(makeInputCell(r, "pcr", "5", idx, "pcr"));
       // TP
-      tr.appendChild(makeInputCell(r, "tp", "12", idx, null, 14));
+      tr.appendChild(makeInputCell(r, "tp", "12", idx, "tp"));
       // %Act
-      tr.appendChild(makeInputCell(r, "pact", "100", idx, 70, null));
+      tr.appendChild(makeInputCell(r, "pact", "100", idx, "pact"));
       // KPTT
-      tr.appendChild(makeInputCell(r, "kptt", "30", idx, null, 40));
+      tr.appendChild(makeInputCell(r, "kptt", "30", idx, "kptt"));
 
-      // Resultado leucocitario
+      // Resultado
       var leuc = computeLeuc(r);
       var tdRes = document.createElement("td");
       tdRes.className = "result " + leuc.state;
       tdRes.textContent = leuc.state === "empty" ? "—" : leuc.display;
       tr.appendChild(tdRes);
 
-      // Borrar fila
+      // Eliminar
       var tdDel = document.createElement("td");
       tdDel.className = "del-cell";
       var delBtn = document.createElement("button");
@@ -705,7 +1194,7 @@
     });
   }
 
-  function makeInputCell(r, field, placeholder, rowIdx, min, max){
+  function makeInputCell(r, field, placeholder, rowIdx, rangeField){
     var td = document.createElement("td");
     var input = document.createElement("input");
     input.className = "cell";
@@ -721,8 +1210,8 @@
     });
     td.appendChild(input);
 
-    if(min !== undefined || max !== undefined){
-      var cls = getCellClass(r[field], min, max);
+    if(rangeField){
+      var cls = getCellClass(r[field], rangeField);
       if(cls) td.className = cls;
     }
     return td;
@@ -733,34 +1222,38 @@
     if(!tr) return;
     var r = rows[rowIdx];
 
+    // HTO
     var htoVal = computeHto(r.hb);
     var tdHto = tr.children[1];
     tdHto.textContent = htoVal || "—";
-    tdHto.className = "calc " + getRangeClass(htoVal, 36, 52);
+    tdHto.className = "calc " + getRangeClass(htoVal, "hto");
 
+    // GR
     var grVal = computeGr(r.hb);
     var tdGr = tr.children[3];
     tdGr.textContent = grVal || "—";
-    tdGr.className = "calc " + getRangeClass(r.hb, 12, 17);
+    tdGr.className = "calc " + getRangeClass(r.hb, "hb");
 
+    // Rangos
     var fieldMap = {
-      2: {field:"hb", min:12, max:17},
-      4: {field:"gb", min:4000, max:11000},
-      10: {field:"plaq", min:150000, max:450000},
-      11: {field:"vsg", min:null, max:20},
-      12: {field:"pcr", min:null, max:10},
-      13: {field:"tp", min:null, max:14},
-      14: {field:"pact", min:70, max:null},
-      15: {field:"kptt", min:null, max:40}
+      2: {field:"hb", range:"hb"},
+      4: {field:"gb", range:"gb"},
+      10: {field:"plaq", range:"plaq"},
+      11: {field:"vsg", range:"vsg"},
+      12: {field:"pcr", range:"pcr"},
+      13: {field:"tp", range:"tp"},
+      14: {field:"pact", range:"pact"},
+      15: {field:"kptt", range:"kptt"}
     };
     Object.keys(fieldMap).forEach(function(idx){
       var td = tr.children[parseInt(idx)];
       var config = fieldMap[idx];
-      var cls = getCellClass(r[config.field], config.min, config.max);
+      var cls = getCellClass(r[config.field], config.range);
       td.className = cls || "";
       if(td.firstChild) td.firstChild.className = "cell";
     });
 
+    // Resultado
     var leuc = computeLeuc(r);
     var tdRes = tr.children[16];
     tdRes.className = "result " + leuc.state;
@@ -769,22 +1262,109 @@
     save();
   }
 
-  // ============ EXPORTAR A EXCEL ============
-  function exportToExcel(){
+  // ============ OBTENER DATOS ============
+  function getDataRows(){
     var withData = rows.filter(function(r){
       return INPUT_FIELDS.some(function(f){ return r[f] !== "" && r[f] !== null && r[f] !== undefined; });
     });
-    var list = withData.length ? withData : rows;
+    return withData.length ? withData : rows;
+  }
 
+  // ============ EXPORTAR EXCEL ============
+  function exportToExcel(){
+    var list = getDataRows();
     if(list.length === 0){
       showToast("No hay datos para exportar");
       return;
     }
 
-    // Construir CSV
+    var wb = XLSX.utils.book_new();
+    var data = [];
+
+    data.push(["", "HEMOGRAMA", "", "", "", "FÓRMULA LEUCOCITARIA", "", "", "", "", "", "", "", "", "", "", "", "", "RESULT. F. LEUCOCITARIA"]);
+    data.push(["N°", "HTO", "HB", "GR", "GB", "Neu", "Eo", "Ba", "Linf", "Mono", "PLAQ", "VSG", "PCR", "TP", "%Act.", "KPTT", "", "", ""]);
+
+    list.forEach(function(r, idx){
+      var hto = computeHto(r.hb) || "";
+      var gr = computeGr(r.hb) || "";
+      var leuc = computeLeuc(r);
+      var leucDisplay = leuc.state === "empty" ? "" : leuc.display;
+      
+      data.push([
+        r.numero || (idx+1),
+        hto,
+        r.hb || "",
+        gr,
+        r.gb || "",
+        r.neu || "",
+        r.eo || "",
+        r.ba || "",
+        r.linf || "",
+        r.mono || "",
+        r.plaq || "",
+        r.vsg || "",
+        r.pcr || "",
+        r.tp || "",
+        r.pact || "",
+        r.kptt || "",
+        "",
+        "",
+        leucDisplay
+      ]);
+    });
+
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!merges'] = [
+      {s:{r:0,c:1}, e:{r:0,c:4}},
+      {s:{r:0,c:5}, e:{r:0,c:9}},
+      {s:{r:0,c:10}, e:{r:0,c:15}},
+      {s:{r:0,c:18}, e:{r:0,c:18}}
+    ];
+    ws['!cols'] = [
+      {wch:5}, {wch:8}, {wch:8}, {wch:12}, {wch:10},
+      {wch:8}, {wch:8}, {wch:8}, {wch:8}, {wch:8},
+      {wch:12}, {wch:8}, {wch:8}, {wch:8}, {wch:8}, {wch:8},
+      {wch:5}, {wch:5}, {wch:16}
+    ];
+
+    XLSX.utils.book_append_sheet(wb, ws, "Hoja1");
+    var wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    var blob = new Blob([wbout], {type:'application/octet-stream'});
+    
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'PLANILLA_HEMOGRAMA.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(function(){ URL.revokeObjectURL(link.href); }, 1000);
+
+    showToast('📊 Excel exportado correctamente (' + list.length + ' pacientes)');
+  }
+
+  // ============ EXPORTAR PDF ============
+  function exportToPDF(){
+    var list = getDataRows();
+    if(list.length === 0){
+      showToast("No hay datos para exportar");
+      return;
+    }
+
+    var { jsPDF } = window.jspdf;
+    var doc = new jsPDF('landscape', 'mm', 'a4');
+    var pageWidth = doc.internal.pageSize.getWidth();
+    var pageHeight = doc.internal.pageSize.getHeight();
+
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('PLANILLA DE HEMOGRAMAS', pageWidth/2, 12, {align:'center'});
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Fecha: ' + todayStr(), pageWidth/2, 18, {align:'center'});
+
     var headers = [
-      "N°","HTO","HB","GR","GB","Neu","Eo","Ba","Linf","Mono",
-      "PLAQ","VSG","PCR","TP","%Act.","KPTT","F.Leuc."
+      ['N°', 'HTO', 'HB', 'GR', 'GB', 'Neu', 'Eo', 'Ba', 'Linf', 'Mono', 
+       'PLAQ', 'VSG', 'PCR', 'TP', '%Act.', 'KPTT', 'F.Leuc.']
     ];
 
     var rowsData = list.map(function(r, idx){
@@ -792,6 +1372,7 @@
       var gr = computeGr(r.hb) || "";
       var leuc = computeLeuc(r);
       var leucDisplay = leuc.state === "empty" ? "" : leuc.display;
+      
       return [
         r.numero || (idx+1),
         hto,
@@ -813,100 +1394,268 @@
       ];
     });
 
-    // Generar XLSX
-    var wb = createWorkbook(headers, rowsData);
-    var url = URL.createObjectURL(wb);
+    doc.autoTable({
+      head: headers,
+      body: rowsData,
+      startY: 22,
+      styles: {
+        fontSize: 7,
+        cellPadding: 1.5,
+        valign: 'middle',
+        halign: 'center'
+      },
+      headStyles: {
+        fillColor: [29, 53, 87],
+        textColor: [255, 255, 255],
+        fontSize: 6.5,
+        fontStyle: 'bold'
+      },
+      columnStyles: {
+        0: {cellWidth: 10, fontStyle: 'bold'},
+        1: {cellWidth: 12},
+        2: {cellWidth: 12},
+        3: {cellWidth: 16},
+        4: {cellWidth: 14},
+        5: {cellWidth: 10},
+        6: {cellWidth: 10},
+        7: {cellWidth: 10},
+        8: {cellWidth: 10},
+        9: {cellWidth: 10},
+        10: {cellWidth: 16},
+        11: {cellWidth: 12},
+        12: {cellWidth: 12},
+        13: {cellWidth: 12},
+        14: {cellWidth: 12},
+        15: {cellWidth: 12},
+        16: {cellWidth: 16}
+      },
+      tableWidth: 'auto',
+      margin: {left: 8, right: 8}
+    });
+
+    var totalPages = doc.internal.getNumberOfPages();
+    for(var i = 1; i <= totalPages; i++){
+      doc.setPage(i);
+      doc.setFontSize(6);
+      doc.text('Total de pacientes: ' + list.length + ' | Página ' + i + '/' + totalPages, 
+               pageWidth/2, pageHeight - 5, {align:'center'});
+    }
+
+    var pdfBlob = doc.output('blob');
     var link = document.createElement('a');
-    link.href = url;
-    link.download = 'hemogramas_' + new Date().toISOString().slice(0,10) + '.xlsx';
+    link.href = URL.createObjectURL(pdfBlob);
+    link.download = 'HEMOGRAMA_' + new Date().toISOString().slice(0,10) + '.pdf';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+    setTimeout(function(){ URL.revokeObjectURL(link.href); }, 1000);
 
-    showToast('📊 Excel exportado correctamente (' + list.length + ' pacientes)');
+    showToast('📄 PDF exportado correctamente (' + list.length + ' pacientes)');
   }
 
-  function createWorkbook(headers, data){
-    // Construir XML de Excel (simplificado pero funcional)
-    var rows = [];
-    rows.push(createRow(headers, true));
+  // ============ COMPARTIR ============
+  var shareModal = document.getElementById('shareModal');
 
-    data.forEach(function(row){
-      rows.push(createRow(row, false));
+  function generateShareFile(){
+    var list = getDataRows();
+    if(list.length === 0){
+      showToast("No hay datos para exportar");
+      return null;
+    }
+
+    var wb = XLSX.utils.book_new();
+    var data = [];
+
+    data.push(["", "HEMOGRAMA", "", "", "", "FÓRMULA LEUCOCITARIA", "", "", "", "", "", "", "", "", "", "", "", "", "RESULT. F. LEUCOCITARIA"]);
+    data.push(["N°", "HTO", "HB", "GR", "GB", "Neu", "Eo", "Ba", "Linf", "Mono", "PLAQ", "VSG", "PCR", "TP", "%Act.", "KPTT", "", "", ""]);
+
+    list.forEach(function(r, idx){
+      var hto = computeHto(r.hb) || "";
+      var gr = computeGr(r.hb) || "";
+      var leuc = computeLeuc(r);
+      var leucDisplay = leuc.state === "empty" ? "" : leuc.display;
+      
+      data.push([
+        r.numero || (idx+1),
+        hto,
+        r.hb || "",
+        gr,
+        r.gb || "",
+        r.neu || "",
+        r.eo || "",
+        r.ba || "",
+        r.linf || "",
+        r.mono || "",
+        r.plaq || "",
+        r.vsg || "",
+        r.pcr || "",
+        r.tp || "",
+        r.pact || "",
+        r.kptt || "",
+        "",
+        "",
+        leucDisplay
+      ]);
     });
 
-    var xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
-      '<?mso-application progid="Excel.Sheet"?>\n' +
-      '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"\n' +
-      ' xmlns:o="urn:schemas-microsoft-com:office:office"\n' +
-      ' xmlns:x="urn:schemas-microsoft-com:office:excel"\n' +
-      ' xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n' +
-      ' <Styles>\n' +
-      '  <Style ss:ID="header">\n' +
-      '   <Font ss:Bold="1" ss:Color="#FFFFFF"/>\n' +
-      '   <Interior ss:Color="#1d3557" ss:Pattern="Solid"/>\n' +
-      '   <Alignment ss:Horizontal="Center" ss:Vertical="Center" ss:WrapText="1"/>\n' +
-      '  </Style>\n' +
-      '  <Style ss:ID="cell">\n' +
-      '   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>\n' +
-      '  </Style>\n' +
-      '  <Style ss:ID="number">\n' +
-      '   <NumberFormat ss:Format="0.00"/>\n' +
-      '   <Alignment ss:Horizontal="Center" ss:Vertical="Center"/>\n' +
-      '  </Style>\n' +
-      ' </Styles>\n' +
-      ' <Worksheet ss:Name="Hemogramas">\n' +
-      '  <Table>\n' +
-      '   <Column ss:Width="40"/>\n' +
-      '   <Column ss:Width="55"/>\n' +
-      '   <Column ss:Width="55"/>\n' +
-      '   <Column ss:Width="65"/>\n' +
-      '   <Column ss:Width="70"/>\n' +
-      '   <Column ss:Width="50"/>\n' +
-      '   <Column ss:Width="50"/>\n' +
-      '   <Column ss:Width="50"/>\n' +
-      '   <Column ss:Width="50"/>\n' +
-      '   <Column ss:Width="50"/>\n' +
-      '   <Column ss:Width="80"/>\n' +
-      '   <Column ss:Width="55"/>\n' +
-      '   <Column ss:Width="55"/>\n' +
-      '   <Column ss:Width="55"/>\n' +
-      '   <Column ss:Width="55"/>\n' +
-      '   <Column ss:Width="55"/>\n' +
-      '   <Column ss:Width="60"/>\n' +
-      rows.join('\n') +
-      '  </Table>\n' +
-      '  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel">\n' +
-      '   <FreezePanes/>\n' +
-      '   <FrozenNoSplit/>\n' +
-      '   <SplitHorizontal>1</SplitHorizontal>\n' +
-      '   <TopRowBottomPane>1</TopRowBottomPane>\n' +
-      '   <ActivePane>2</ActivePane>\n' +
-      '  </WorksheetOptions>\n' +
-      ' </Worksheet>\n' +
-      '</Workbook>';
+    var ws = XLSX.utils.aoa_to_sheet(data);
+    ws['!merges'] = [
+      {s:{r:0,c:1}, e:{r:0,c:4}},
+      {s:{r:0,c:5}, e:{r:0,c:9}},
+      {s:{r:0,c:10}, e:{r:0,c:15}},
+      {s:{r:0,c:18}, e:{r:0,c:18}}
+    ];
+    ws['!cols'] = [
+      {wch:5}, {wch:8}, {wch:8}, {wch:12}, {wch:10},
+      {wch:8}, {wch:8}, {wch:8}, {wch:8}, {wch:8},
+      {wch:12}, {wch:8}, {wch:8}, {wch:8}, {wch:8}, {wch:8},
+      {wch:5}, {wch:5}, {wch:16}
+    ];
 
-    return new Blob([xml], {type: 'application/vnd.ms-excel'});
+    XLSX.utils.book_append_sheet(wb, ws, "Hoja1");
+    var wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    return new Blob([wbout], {type:'application/octet-stream'});
   }
 
-  function createRow(cells, isHeader){
-    var style = isHeader ? ' ss:StyleID="header"' : ' ss:StyleID="cell"';
-    var cellsXml = cells.map(function(cell){
-      var isNum = !isNaN(parseFloat(cell)) && cell !== "";
-      var type = isNum ? 'Number' : 'String';
-      var styleAttr = isNum ? ' ss:StyleID="number"' : '';
-      return '   <Cell' + styleAttr + '><Data ss:Type="' + type + '">' +
-        escapeXml(cell) + '</Data></Cell>';
-    }).join('\n');
-    return '   <Row' + style + '>\n' + cellsXml + '\n   </Row>';
-  }
+  document.getElementById('shareWhatsApp').addEventListener('click', function(){
+    var blob = generateShareFile();
+    if(!blob) return;
+    var url = URL.createObjectURL(blob);
+    var message = encodeURIComponent('📊 Planilla de Hemogramas - ' + todayStr());
+    window.open('https://wa.me/?text=' + message + '%0A%0A📎 ' + url, '_blank');
+    shareModal.classList.remove('active');
+    showToast('💬 Abriendo WhatsApp...');
+  });
 
-  function escapeXml(str){
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
+  document.getElementById('shareGmail').addEventListener('click', function(){
+    var blob = generateShareFile();
+    if(!blob) return;
+    var url = URL.createObjectURL(blob);
+    var subject = encodeURIComponent('Planilla de Hemogramas - ' + todayStr());
+    var body = encodeURIComponent('Adjunto la planilla de hemogramas.\n\n📎 ' + url);
+    window.open('mailto:?subject=' + subject + '&body=' + body, '_blank');
+    shareModal.classList.remove('active');
+    showToast('📧 Abriendo correo...');
+  });
 
-  document.getElementById("addRowBtn").addEventListener("click", function(){
+  document.getElementById('shareDrive').addEventListener('click', function(){
+    var blob = generateShareFile();
+    if(!blob) return;
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = 'PLANILLA_HEMOGRAMA.xlsx';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    shareModal.classList.remove('active');
+    showToast('☁️ Archivo descargado, subilo a Drive');
+  });
+
+  document.getElementById('shareCopy').addEventListener('click', function(){
+    var blob = generateShareFile();
+    if(!blob) return;
+    var url = URL.createObjectURL(blob);
+    navigator.clipboard.writeText(url).then(function(){
+      showToast('📋 Enlace copiado al portapapeles');
+    }).catch(function(){
+      var dummy = document.createElement('input');
+      dummy.value = url;
+      document.body.appendChild(dummy);
+      dummy.select();
+      document.execCommand('copy');
+      document.body.removeChild(dummy);
+      showToast('📋 Enlace copiado al portapapeles');
+    });
+    shareModal.classList.remove('active');
+  });
+
+  document.getElementById('closeShareModal').addEventListener('click', function(){
+    shareModal.classList.remove('active');
+  });
+
+  // ============ CONFIGURACIÓN MODAL ============
+  var configModal = document.getElementById('configModal');
+
+  document.getElementById('openConfigBtn').addEventListener('click', function(){
+    applyConfig();
+    configModal.classList.add('active');
+  });
+
+  document.getElementById('closeConfigBtn').addEventListener('click', function(){
+    configModal.classList.remove('active');
+  });
+
+  configModal.addEventListener('click', function(e){
+    if(e.target === configModal) configModal.classList.remove('active');
+  });
+
+  // Zoom
+  document.getElementById('zoomRange').addEventListener('input', function(){
+    var val = parseInt(this.value);
+    document.getElementById('zoomLabel').textContent = val + '%';
+    config.zoom = val;
+    tableWrap.style.transform = 'scale(' + (val/100) + ')';
+    tableWrap.style.transformOrigin = 'top left';
+  });
+
+  document.getElementById('zoomIn').addEventListener('click', function(){
+    var input = document.getElementById('zoomRange');
+    var val = Math.min(150, parseInt(input.value) + 5);
+    input.value = val;
+    input.dispatchEvent(new Event('input'));
+  });
+
+  document.getElementById('zoomOut').addEventListener('click', function(){
+    var input = document.getElementById('zoomRange');
+    var val = Math.max(60, parseInt(input.value) - 5);
+    input.value = val;
+    input.dispatchEvent(new Event('input'));
+  });
+
+  // Color picker
+  document.querySelectorAll('#colorPicker button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('#colorPicker button').forEach(function(b){ b.classList.remove('active'); });
+      this.classList.add('active');
+      config.headerColor = this.dataset.color;
+      applyConfig();
+    });
+  });
+
+  // Guardar configuración
+  document.getElementById('saveConfigBtn').addEventListener('click', function(){
+    // Guardar fórmulas
+    config.formulas.hto = document.getElementById('formulaHto').value;
+    config.formulas.gr = document.getElementById('formulaGr').value;
+    config.formulas.leuc = document.getElementById('formulaLeuc').value;
+
+    // Guardar rangos
+    var rangeFields = ['hto','hb','gb','plaq','vsg','pcr','tp','pact','kptt'];
+    rangeFields.forEach(function(field){
+      var minEl = document.getElementById('range-' + field + '-min');
+      var maxEl = document.getElementById('range-' + field + '-max');
+      var min = minEl.value !== '' ? parseFloat(minEl.value) : null;
+      var max = maxEl.value !== '' ? parseFloat(maxEl.value) : null;
+      config.ranges[field] = {min: min, max: max};
+    });
+
+    saveConfig();
+    applyConfig();
+    renderRows();
+    configModal.classList.remove('active');
+    showToast('✅ Configuración guardada');
+  });
+
+  document.getElementById('resetConfigBtn').addEventListener('click', function(){
+    if(confirm('¿Restaurar configuración predeterminada?')){
+      resetConfig();
+      renderRows();
+    }
+  });
+
+  // ============ EVENTOS PRINCIPALES ============
+  document.getElementById('addRowBtn').addEventListener('click', function(){
     var newRow = emptyRow();
     newRow.numero = (rows.length + 1).toString();
     rows.push(newRow);
@@ -916,7 +1665,7 @@
     wrap.scrollTop = wrap.scrollHeight;
   });
 
-  document.getElementById("clearAllBtn").addEventListener("click", function(){
+  document.getElementById('clearAllBtn').addEventListener('click', function(){
     if(confirm("¿Vaciar todos los datos?")){
       rows = [emptyRow(), emptyRow(), emptyRow()];
       rows.forEach(function(r, i){ r.numero = (i+1).toString(); });
@@ -926,9 +1675,19 @@
     }
   });
 
-  document.getElementById("exportExcelBtn").addEventListener("click", exportToExcel);
+  document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
+  document.getElementById('exportPDFBtn').addEventListener('click', exportToPDF);
 
-  document.getElementById("printBtn").addEventListener("click", function(){
+  document.getElementById('shareBtn').addEventListener('click', function(){
+    var list = getDataRows();
+    if(list.length === 0){
+      showToast("No hay datos para compartir");
+      return;
+    }
+    shareModal.classList.add('active');
+  });
+
+  document.getElementById('printBtn').addEventListener('click', function(){
     buildPrintSheet();
     window.print();
   });
@@ -939,10 +1698,7 @@
     var printFooter = document.getElementById("printFooter");
     printBody.innerHTML = "";
 
-    var withData = rows.filter(function(r){
-      return INPUT_FIELDS.some(function(f){ return r[f] !== "" && r[f] !== null && r[f] !== undefined; });
-    });
-    var list = withData.length ? withData : rows;
+    var list = getDataRows();
 
     list.forEach(function(r, idx){
       var tr = document.createElement("tr");
@@ -987,7 +1743,10 @@
     printFooter.textContent = "Total de pacientes: " + list.length;
   }
 
+  // ============ INICIALIZAR ============
+  loadConfig();
   load();
+  applyConfig();
   renderRows();
 })();
 </script>
